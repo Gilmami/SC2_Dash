@@ -26,7 +26,11 @@ tree = etree.parse(response, htmlparser)
 obj = tree.xpath('//table/tbody/tr/td/a')
 
 links = etree.ElementTree()
+
 for i in range(0, len(obj)):
-    if "class" not in obj[i].attrib:
-        if len(re.split("\s", obj[i].text)) > 2:
-            links.write(obj[i])
+    if "class" in obj[i].attrib:
+        del obj[i]
+    elif len(re.split(r'\s', obj[i].text)) > 2:
+        del obj[i]
+    else:
+        continue
