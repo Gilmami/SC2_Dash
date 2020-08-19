@@ -12,7 +12,7 @@ class LiquidSpider(CrawlSpider):
                    "https://liquipedia.net/starcraft2/Female_Tournaments"]
 
     rules = (
-        Rule(LinkExtractor(allow=r'/starcraft2'), callback='parse_item', follow=True),
+        Rule(LinkExtractor(allow=r'/starcraft2', restrict_xpaths="//table/tbody/tr/td/a", ), callback='parse_item', follow=True),
     )
 
     def parse_item(self, response):
