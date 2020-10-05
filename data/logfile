@@ -1,0 +1,11 @@
+2020-08-31 19:14:04.527 PDT [45053] LOG:  starting PostgreSQL 12.4 on x86_64-apple-darwin19.5.0, compiled by Apple clang version 11.0.3 (clang-1103.0.32.62), 64-bit
+2020-08-31 19:14:04.529 PDT [45053] LOG:  listening on IPv6 address "::1", port 5432
+2020-08-31 19:14:04.529 PDT [45053] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2020-08-31 19:14:04.530 PDT [45053] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2020-08-31 19:14:04.551 PDT [45054] LOG:  database system was shut down at 2020-08-29 15:22:33 PDT
+2020-08-31 19:14:04.562 PDT [45053] LOG:  database system is ready to accept connections
+2020-08-31 19:17:28.865 PDT [45053] LOG:  received fast shutdown request
+2020-08-31 19:17:28.866 PDT [45053] LOG:  aborting any active transactions
+2020-08-31 19:17:28.869 PDT [45053] LOG:  background worker "logical replication launcher" (PID 45060) exited with exit code 1
+2020-08-31 19:17:28.869 PDT [45055] LOG:  shutting down
+2020-08-31 19:17:28.878 PDT [45053] LOG:  database system is shut down

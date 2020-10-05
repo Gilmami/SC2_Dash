@@ -5,6 +5,7 @@ from lxml import etree  # get html from site and write to local file
 import re
 import time
 
+#extracts the specific child tournament links for future manipulation
 def liquidlinkextraction(url):
     response = urlopen(url)
     htmlparser = etree.HTMLParser()
@@ -26,6 +27,9 @@ def liquidlinkextraction(url):
 
     return j
 
+# this takes specific tournament links and extracts the matchup data as a list of dicts. only for premier and major
+# events for minor and below they use a bracket object that I have yet to parse.
+
 def dataextraction(url):
     response = urlopen(url)
     htmlparser = etree.HTMLParser()
@@ -41,14 +45,31 @@ def dataextraction(url):
             match = {}
             match["player1"] = elem.getchildren()[0].text
             match["player1race"] = elem.getchildren()[1].get("title")
+
         elif count % 4 == 1:
-            match["player1score"] = int(elem.text)
+            try:
+                match["player1score"] = int(elem.text)
+            except ValueError:
+                if elem.text == "-":
+                    match["player1score"] = "N/A"
+            finally:
+                pass
+
         elif count % 4 == 2:
-            match["player2score"] = int(elem.text)
+            try:
+                match["player2score"] = int(elem.text)
+            except ValueError:
+                if elem.text == "-":
+                    match["player2score"] = "N/A"
+            finally:
+                pass
+
         elif count % 4 == 3:
             match["player2"] = elem.getchildren()[1].text
             match["player2race"] = elem.getchildren()[0].get("title")
             matchups.append(match)
+
+        count += 1
 
         # first elem in list = row object, therefore needs to be processed elem by elem.
         # every 4th elem starting at 0 is laid out matchtree[0].getchildren()[0].text is the name of the player,
@@ -83,8 +104,32 @@ initial = ["https://liquipedia.net/starcraft2/Premier_Tournaments",
            "https://liquipedia.net/starcraft2/Female_Tournaments"]
 
 # not sure how I want to do this yet, so i'm just gonna leave it alone for today.
-# for i in initial:
-#     links = liquidlinkextraction(i)
-#
-# for link in links:
-#     dataextraction(link)
+tourneys = list()
+for i in initial:
+    links = liquidlinkextraction(i)
+    time.sleep(60)
+    for link in links:
+        tourneys.append(dataextraction(link))
+        time.sleep(60)
+
+# i don't want to get banned from scraping liquipedia so i haven't done this yet, I was hoping to build more out
+# before I do this just in case I do get banned from scraping, it might also be a good excersize to see if I can
+# actually implement the things I want to do.
+
+"https://liquipedia.net/starcraft2/Show_Matches"
+
+tourneys = list()
+links = liquidlinkextraction("https://liquipedia.net/starcraft2/Premier_Tournaments")
+for link in links:
+    tourneys.append(dataextraction(link))
+    time.sleep(10)
+
+# tourneys is now a list of lists of dicts... what disgusting beast have I created?
+# now I need to take this list of list of dicts and parse it into a much easier setup.
+# I feel like putting this essentially raw into a database would be the easiest way
+# to pull it in a somewhat usable format, since we don't really care about the specific matches,
+# but instead the history between two players. So it would help to be able to compare quickly the large
+# volume of data I have in matchups. Pretty sure it's close to like, 16,000 individual matchups.
+
+# now to figure out how to actually get tourney into a database... Here goes.
+connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
