@@ -35,10 +35,11 @@ def dataextraction(url):
     htmlparser = etree.HTMLParser()
     tree = etree.parse(response, htmlparser)
 
+    tournamentname = tree.findall("//h1")[0][0].text
     matchtree = tree.findall("//table/tbody/tr[@class='match-row']/td")
     count = 0
     matchups = list()
-
+    matchups.append(tournamentname)
 
     for elem in matchtree:
         if count % 4 == 0:
@@ -86,7 +87,6 @@ def dataextraction(url):
         # I could make it a list of dicts, with the first element being the version of the game like ("version #",
         # {Player1 : player1, Player2 : player2, Player1race : 'Zerg', player2race : 'Protoss', player1score : 2,
         # player2score : 1}, {.....}, ... ) where each dict object represents a matchup.
-        #
     return matchups
 
 if __name__ == '__main__':
@@ -95,7 +95,7 @@ if __name__ == '__main__':
 # (mostly)
 # Now we have a framework to implement on all 7 of our starting links. which will happen with a simple loop.
 
-initial = ["https://liquipedia.net/starcraft2/Premier_Tournaments",
+    initial = ["https://liquipedia.net/starcraft2/Premier_Tournaments",
            "https://liquipedia.net/starcraft2/Major_Tournaments",
            "https://liquipedia.net/starcraft2/Minor_Tournaments",
            "https://liquipedia.net/starcraft2/Monthly_Tournaments",
@@ -107,16 +107,15 @@ initial = ["https://liquipedia.net/starcraft2/Premier_Tournaments",
 tourneys = list()
 for i in initial:
     links = liquidlinkextraction(i)
-    time.sleep(60)
+    time.sleep(10)
     for link in links:
         tourneys.append(dataextraction(link))
-        time.sleep(60)
+        time.sleep(10)
 
 # i don't want to get banned from scraping liquipedia so i haven't done this yet, I was hoping to build more out
 # before I do this just in case I do get banned from scraping, it might also be a good excersize to see if I can
 # actually implement the things I want to do.
 
-"https://liquipedia.net/starcraft2/Show_Matches"
 
 tourneys = list()
 links = liquidlinkextraction("https://liquipedia.net/starcraft2/Premier_Tournaments")
@@ -132,4 +131,15 @@ for link in links:
 # volume of data I have in matchups. Pretty sure it's close to like, 16,000 individual matchups.
 
 # now to figure out how to actually get tourney into a database... Here goes.
-connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
+# first I gotta establish the connection with the database and create the table that my matchup data will go into
+# This will, in the future be more of like, an initialization step for the application? but for now,
+# but for now, this is where i'm gonna put it. (I really hope i'm not making spaghetti code rn...)
+# Pretty sure this isn't necessary because
+    connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
+    cursor = connection.cursor()
+    cursor.execute("CREATE TABLE premier ( player1 text, player1race text, player1score integer, "
+                   "player2score integer, player2 text, player2race text);"
+                   )
+
+    cursor.execute("INSERT INTO premier ( player1, player1race, player1score, player2score, player2, player2race)"
+                   "VALUES (%(player1)s")
