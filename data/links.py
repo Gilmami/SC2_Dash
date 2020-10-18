@@ -4,6 +4,17 @@ from urllib.request import urlopen
 from lxml import etree  # get html from site and write to local file
 import re
 import time
+import psycopg2
+from psycopg2 import sql
+
+#I'm not sure I need this level of abstraction. might be over complicating things.
+# I think this is probably the best way to go for ease when porting into the database
+class tournament:
+    def __init__(self, name, matches, patch=None):
+        self.matches = matches
+        self.name = name
+        self.patch = patch
+
 
 #extracts the specific child tournament links for future manipulation
 def liquidlinkextraction(url):
@@ -35,11 +46,11 @@ def dataextraction(url):
     htmlparser = etree.HTMLParser()
     tree = etree.parse(response, htmlparser)
 
-    tournamentname = tree.findall("//h1")[0][0].text
+    tname = tree.findall("//h1")[0][0].text
+    # gonna ignore the patch for now and naively (read: conveniently) analyze as if all patches are the same.
     matchtree = tree.findall("//table/tbody/tr[@class='match-row']/td")
     count = 0
     matchups = list()
-    matchups.append(tournamentname)
 
     for elem in matchtree:
         if count % 4 == 0:
@@ -71,7 +82,7 @@ def dataextraction(url):
             matchups.append(match)
 
         count += 1
-
+    tourn = tournament(tname, matchups)
         # first elem in list = row object, therefore needs to be processed elem by elem.
         # every 4th elem starting at 0 is laid out matchtree[0].getchildren()[0].text is the name of the player,
         # matchtree[0].getchildren()[1].get("title") is the race.
@@ -87,7 +98,7 @@ def dataextraction(url):
         # I could make it a list of dicts, with the first element being the version of the game like ("version #",
         # {Player1 : player1, Player2 : player2, Player1race : 'Zerg', player2race : 'Protoss', player1score : 2,
         # player2score : 1}, {.....}, ... ) where each dict object represents a matchup.
-    return matchups
+    return tourn
 
 if __name__ == '__main__':
 
@@ -134,12 +145,26 @@ for link in links:
 # first I gotta establish the connection with the database and create the table that my matchup data will go into
 # This will, in the future be more of like, an initialization step for the application? but for now,
 # but for now, this is where i'm gonna put it. (I really hope i'm not making spaghetti code rn...)
-# Pretty sure this isn't necessary because
-    connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
-    cursor = connection.cursor()
-    cursor.execute("CREATE TABLE premier ( player1 text, player1race text, player1score integer, "
-                   "player2score integer, player2 text, player2race text);"
-                   )
 
-    cursor.execute("INSERT INTO premier ( player1, player1race, player1score, player2score, player2, player2race)"
-                   "VALUES (%(player1)s")
+# Now I have my queries all set up, I need to figure out how to iterate through my names and take any that have
+# numeric at the front of the name and put them into the back, because 2020_gsl_masters is the same to me as
+# _gsl_masters_2020. Okay, from names need to clean -, /, (, ), " ", :, and they have to start with a non-numeric.
+# FUUUU. such a pain.
+
+
+
+connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
+cursor = connection.cursor()
+
+for i in tourneys:
+    cursor.execute(
+        sql.SQL("""CREATE TABLE {} (player1 text, player1race text, player1score integer,
+           player2score integer, player2 text, 
+           player2race text);""".format(i.name.replace(" ", "_").replace(":", "").replace(".","").replace("-","").replace("/","").replace("20", "Twenty").lower())))
+
+for i in tourneys:
+    for match in i.matches:
+        cursor.execute(
+            sql.SQL("""INSERT INTO {} (player1, player1race, player1score, player2score, player2, player2race)
+                       VALUES (%(player1)s, %(player1race)s, %(player1score)s, %(player2score)s, %(player2)s, 
+                       %(player2race)s);""".format(i.name.replace(" ", "_").replace(":", "").replace("20", "twenty").lower())), match)
