@@ -63,7 +63,7 @@ def dataextraction(url):
                 match["player1score"] = int(elem.text)
             except ValueError:
                 if elem.text == "-":
-                    match["player1score"] = "N/A"
+                    match["player1score"] = None
             finally:
                 pass
 
@@ -72,7 +72,7 @@ def dataextraction(url):
                 match["player2score"] = int(elem.text)
             except ValueError:
                 if elem.text == "-":
-                    match["player2score"] = "N/A"
+                    match["player2score"] = None
             finally:
                 pass
 
@@ -152,19 +152,37 @@ for link in links:
 # FUUUU. such a pain.
 
 
+def clean(string):
+    cleaned = ""
+    nstr = string
+    punct = """!()-[]{};:'",<\>./?@#$%^&*_~"""
+    if string.startswith("20"):
+        nstr = "Twenty" + string[2:]
+    for i in nstr:
+        if i.isspace():
+            cleaned = cleaned + "_"
+        elif i not in punct:
+            cleaned = cleaned + i
+        else:
+            pass
+    return cleaned.lower()
+
+
+
 
 connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
 cursor = connection.cursor()
-
-for i in tourneys:
-    cursor.execute(
-        sql.SQL("""CREATE TABLE {} (player1 text, player1race text, player1score integer,
-           player2score integer, player2 text, 
-           player2race text);""".format(i.name.replace(" ", "_").replace(":", "").replace(".","").replace("-","").replace("/","").replace("20", "Twenty").lower())))
-
-for i in tourneys:
-    for match in i.matches:
+with connection:
+    for i in tourneys:
+        cursor.execute("DROP TABLE IF EXISTS {}".format(clean(i.name)))
         cursor.execute(
-            sql.SQL("""INSERT INTO {} (player1, player1race, player1score, player2score, player2, player2race)
-                       VALUES (%(player1)s, %(player1race)s, %(player1score)s, %(player2score)s, %(player2)s, 
-                       %(player2race)s);""".format(i.name.replace(" ", "_").replace(":", "").replace("20", "twenty").lower())), match)
+            sql.SQL("""CREATE TABLE {} (player1 text, player1race text, player1score integer,
+               player2score integer, player2 text, 
+               player2race text);""".format(clean(i.name))))
+
+    for i in tourneys:
+        for match in i.matches:
+            cursor.execute(
+                sql.SQL("""INSERT INTO {} (player1, player1race, player1score, player2score, player2, player2race)
+                           VALUES (%(player1)s, %(player1race)s, %(player1score)s, %(player2score)s, %(player2)s, 
+                           %(player2race)s);""".format(clean(i.name))), match)
