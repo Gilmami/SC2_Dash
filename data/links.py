@@ -167,22 +167,59 @@ def clean(string):
             pass
     return cleaned.lower()
 
+tmt_wth_matches = []
+for i in tourneys:
+    if len(i.matches) == len([]):
+        pass
+    else:
+        tmt_wth_matches.append(i)
 
+for i in tmt_wth_matches:
+    for j in i.matches:
+        if "player1score" in j:
+            pass
+        else:
+            j["player1score"] = None
+    for j in i.matches:
+        if "player2score" in j:
+            pass
+        else:
+            j["player2score"] = None
 
+count = 1
+for i in tmt_wth_matches:
+    for j in i.matches:
+        j["tournament_id"] = count
+    count += 1
 
 connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
 cursor = connection.cursor()
 with connection:
-    for i in tourneys:
-        cursor.execute("DROP TABLE IF EXISTS {}".format(clean(i.name)))
-        cursor.execute(
-            sql.SQL("""CREATE TABLE {} (player1 text, player1race text, player1score integer,
-               player2score integer, player2 text, 
-               player2race text);""".format(clean(i.name))))
+    cursor.execute("DROP TABLE IF EXISTS matches;")
+    cursor.execute("DROP TABLE IF EXISTS premier_tournaments;")
 
-    for i in tourneys:
+    cursor.execute("""CREATE TABLE premier_tournaments(tournament_id INT, tournament_name TEXT,
+        PRIMARY KEY(tournament_id));""")
+    cursor.execute("""CREATE TABLE matches(match_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY, tournament_id INT, player1 TEXT, 
+        player1race TEXT, player1score INT, player2score INT, player2 TEXT, player2race TEXT,
+        CONSTRAINT fk_tournament
+            FOREIGN KEY(tournament_id)
+            REFERENCES premier_tournaments(tournament_id));""")
+
+    for i in tmt_wth_matches:
+        cursor.execute("DROP TABLE IF EXISTS {};".format(clean(i.name)))
+        cursor.execute(
+            sql.SQL("""INSERT INTO premier_tournaments (tournament_id, tournament_name)
+            VALUES(%(tournament_id)s, %(tournament_name)s);"""),
+            {"tournament_id" : i.matches[1].get("tournament_id"), "tournament_name" : i.name})
         for match in i.matches:
             cursor.execute(
-                sql.SQL("""INSERT INTO {} (player1, player1race, player1score, player2score, player2, player2race)
-                           VALUES (%(player1)s, %(player1race)s, %(player1score)s, %(player2score)s, %(player2)s, 
-                           %(player2race)s);""".format(clean(i.name))), match)
+                sql.SQL("""INSERT INTO matches (tournament_id, player1, player1race, player1score, 
+                player2score, player2, player2race)
+                VALUES (%(tournament_id)s, %(player1)s, %(player1race)s, %(player1score)s, %(player2score)s, 
+                %(player2)s, %(player2race)s);"""), match)
+
+SELECT player1, player2,
+SUM(player1score) AS p1score,
+SUM(player2score) AS p2score
+FROM matches
