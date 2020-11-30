@@ -100,7 +100,6 @@ def dataextraction(url):
         # player2score : 1}, {.....}, ... ) where each dict object represents a matchup.
     return tourn
 
-if __name__ == '__main__':
 
 # got it. This takes all elements in the tables and restricts it to only the ones that reference a tournament page
 # (mostly)
@@ -114,14 +113,14 @@ if __name__ == '__main__':
            "https://liquipedia.net/starcraft2/Show_Matches",
            "https://liquipedia.net/starcraft2/Female_Tournaments"]
 
-# not sure how I want to do this yet, so i'm just gonna leave it alone for today.
-tourneys = list()
-for i in initial:
-    links = liquidlinkextraction(i)
-    time.sleep(10)
-    for link in links:
-        tourneys.append(dataextraction(link))
-        time.sleep(10)
+# This is for doing every tournament, but I don't even have just premiers nailed down. will expand once I
+# tourneys = list()
+# for i in initial:
+#     links = liquidlinkextraction(i)
+#     time.sleep(10)
+#     for link in links:
+#         tourneys.append(dataextraction(link))
+#         time.sleep(10)
 
 # i don't want to get banned from scraping liquipedia so i haven't done this yet, I was hoping to build more out
 # before I do this just in case I do get banned from scraping, it might also be a good excersize to see if I can
@@ -191,20 +190,30 @@ for i in tmt_wth_matches:
     for j in i.matches:
         j["tournament_id"] = count
     count += 1
-
+count = 1
+for tourn in tmt_wth_matches:
+    for match in tourn.matches:
+        match["matchID"] = count
+        count+=1
 connection = psycopg2.connect("dbname=matchdata user=michaelgilman")
 cursor = connection.cursor()
 with connection:
+    cursor.execute("DROP TABLE IF EXISTS matchresults;")
     cursor.execute("DROP TABLE IF EXISTS matches;")
     cursor.execute("DROP TABLE IF EXISTS premier_tournaments;")
 
     cursor.execute("""CREATE TABLE premier_tournaments(tournament_id INT, tournament_name TEXT,
         PRIMARY KEY(tournament_id));""")
-    cursor.execute("""CREATE TABLE matches(match_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY, tournament_id INT, player1 TEXT, 
-        player1race TEXT, player1score INT, player2score INT, player2 TEXT, player2race TEXT,
+
+    cursor.execute("""CREATE TABLE matches(match_id INT PRIMARY KEY, tournament_id INT, patch TEXT);""")
+
+    cursor.execute("""CREATE TABLE matchresults(match_id INT, tournament_id INT, player1 TEXT, 
+        player1race TEXT, player1score INT,
         CONSTRAINT fk_tournament
-            FOREIGN KEY(tournament_id)
-            REFERENCES premier_tournaments(tournament_id));""")
+            FOREIGN KEY(tournament_id) REFERENCES premier_tournaments(tournament_id),
+            FOREIGN KEY(match_id) REFERENCES matches(match_id)
+            );""")
+
 
     for i in tmt_wth_matches:
         cursor.execute("DROP TABLE IF EXISTS {};".format(clean(i.name)))
@@ -214,12 +223,12 @@ with connection:
             {"tournament_id" : i.matches[1].get("tournament_id"), "tournament_name" : i.name})
         for match in i.matches:
             cursor.execute(
-                sql.SQL("""INSERT INTO matches (tournament_id, player1, player1race, player1score, 
-                player2score, player2, player2race)
-                VALUES (%(tournament_id)s, %(player1)s, %(player1race)s, %(player1score)s, %(player2score)s, 
-                %(player2)s, %(player2race)s);"""), match)
+                sql.SQL("""INSERT INTO matches (match_id, tournament_id)
+                VALUES (%(matchID)s, %(tournament_id)s);"""), match)
+            cursor.execute(
+                sql.SQL("""INSERT INTO matchresults (match_id, tournament_id, player1, player1race, player1score)
+                VALUES (%(matchID)s, %(tournament_id)s, %(player1)s, %(player1race)s, %(player1score)s);"""), match)
+            cursor.execute(
+                sql.SQL("""INSERT INTO matchresults (match_id, tournament_id, player1, player1race, player1score)
+                VALUES (%(matchID)s, %(tournament_id)s, %(player2)s, %(player2race)s, %(player2score)s);"""), match)
 
-SELECT player1, player2,
-SUM(player1score) AS p1score,
-SUM(player2score) AS p2score
-FROM matches
